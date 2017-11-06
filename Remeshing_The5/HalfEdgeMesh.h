@@ -508,7 +508,7 @@ typedef size_t Size;
 		/**
 		* returns one of the two halfedges of this vertex
 		*/
-		HalfedgeCIter  halfedge(void) const { return _halfedge; }
+		HalfedgeCIter  halfedge(void) const { return _halfedge; }  //returns a copy???
 
 		bool isBoundary(void);
 

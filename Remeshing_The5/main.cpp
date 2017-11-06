@@ -58,7 +58,7 @@ HalfedgeMesh heMesh;
 
 // tweak bar
 TwBar *tweakBar;
-bool wireFrameTeapot = false;
+bool wireFrameTeapot = true;
 /* *********************************************************************************************************
 TweakBar
 ********************************************************************************************************* */
@@ -160,7 +160,6 @@ void loadShader(bool init) {
 	basicShader = Shader("./shader/standard.vs.glsl", "./shader/standard.fs.glsl");
 	modelLoaderShader = Shader("./shader/modelLoader.vs.glsl", "./shader/modelLoader.fs.glsl");
 	skyboxShader = Shader("./shader/skybox.vs.glsl", "./shader/skybox.fs.glsl");
-
 }
 
 /* *********************************************************************************************************
@@ -216,7 +215,9 @@ void sponzaStandardScene(){
 /* *********************************************************************************************************
 Vector/Triangle - Intersection
 ********************************************************************************************************* */
-float rayIntersectsTriangle(glm::vec3 origin, glm::vec3 direction, glm::vec3 v0, glm::vec3 v1, glm::vec3 v2) {
+float rayIntersectsTriangle(glm::vec3 origin, glm::vec3 direction, glm::vec3 v0, glm::vec3 v1, glm::vec3 v2, float& u_out, float& v_out) {
+	//Intersection - Test:
+	//http://www.lighthouse3d.com/tutorials/maths/ray-triangle-intersection/
 	glm::vec3 h, s, q;
 	float a, f, u, v;
 
@@ -246,20 +247,23 @@ float rayIntersectsTriangle(glm::vec3 origin, glm::vec3 direction, glm::vec3 v0,
 	// the intersection point is on the line
 	float t = f * glm::dot(e2, q);
 
-	if (t > 0.00001f) // ray intersection
+	if (t > 0.00001f) { // ray intersection
+		u_out = u;
+		v_out = v;
 		return(t);
+	}
 
 	else // this means that there is a line intersection
 		 // but not a ray intersection
 		return (-1.0f);
-
 }
+
 /*********************************************
 Mouse selection on simpleModel types (vector of vertices/indices)
 *********************************************/
 void mouseTriangleSelecction() {
 	if (leftMouseClick) {
-		
+
 		leftMouseClick = false;
 
 		float x = 2.0f * (float(leftMouseClickX) / float(WIDTH)) - 1.0f;
@@ -270,36 +274,99 @@ void mouseTriangleSelecction() {
 		glm::vec4 ray_eye = glm::inverse(projMatrix) * ray_clip;
 		ray_eye = glm::vec4(ray_eye.x, ray_eye.y, -1.0, 0.0);
 
-		glm::vec3 ray_wor = glm::vec3( (glm::inverse(viewMatrix) * ray_eye) );
-		ray_wor = glm::normalize( ray_wor );
+		glm::vec3 ray_wor = glm::vec3((glm::inverse(viewMatrix) * ray_eye));
+		ray_wor = glm::normalize(ray_wor);
 
-		vector<pair<float, int>> list;
-
-		for (int i = 0; i < teaPot->indices.size() / 3; i++) {
+		vector<pair<float, pair<int, FaceIter>>> list;
+		int i = 0;
+		for (FaceIter f = heMesh.facesBegin(); f != heMesh.facesEnd(); f++) {
 
 			glm::mat4 modelMatrixIntersect = glm::mat4(1.0f);
 			modelMatrixIntersect = glm::translate(modelMatrixIntersect, glm::vec3(-10.0f, 0.0f, 0.0f));
 			modelMatrixIntersect = glm::scale(modelMatrixIntersect, glm::vec3(3.0f));
 
-			glm::vec3 v0 = glm::vec3( modelMatrixIntersect * glm::vec4(teaPot->vertices[teaPot->indices[3 * i + 0]], 1.0f) );
-			glm::vec3 v1 = glm::vec3( modelMatrixIntersect * glm::vec4(teaPot->vertices[teaPot->indices[3 * i + 1]], 1.0f) );
-			glm::vec3 v2 = glm::vec3( modelMatrixIntersect * glm::vec4(teaPot->vertices[teaPot->indices[3 * i + 2]], 1.0f) );
+			HalfedgeIter h = f->halfedge();
+			glm::vec3 v0 = glm::vec3(modelMatrixIntersect * glm::vec4(h->vertex()->position, 1.0f));
 
-			float t = rayIntersectsTriangle(cam.position, ray_wor, v0, v1, v2);
+			h = h->next();
+			glm::vec3 v1 = glm::vec3(modelMatrixIntersect * glm::vec4(h->vertex()->position, 1.0f));
+
+			h = h->next();
+			glm::vec3 v2 = glm::vec3(modelMatrixIntersect * glm::vec4(h->vertex()->position, 1.0f));
+
+			float u, v;
+			float t = rayIntersectsTriangle(cam.position, ray_wor, v0, v1, v2, u, v);
+
+
 			if (t != -1.0f) {
-				list.push_back(pair<float, int>(t, i));
+				std::cout << "t: " << t << " u: " << u << " v: " << v << std::endl;
+				list.push_back(pair<float, pair<int, FaceIter>>(t, pair<int, FaceIter>(i, f)));
 			}
+
+			i++;
 		}
 
-		sort(list.begin(), list.end());
+
+
+		//If we dont even hit a triangle stop here
 		if (!list.empty()) {
-			halfEdgeMeshColors[3 * list[0].second + 0] = glm::vec3(0.0f);
-			halfEdgeMeshColors[3 * list[0].second + 1] = glm::vec3(0.0f);
-			halfEdgeMeshColors[3 * list[0].second + 2] = glm::vec3(0.0f);
+
+			//Sort all triangles hit by ray
+			sort(list.begin(), list.end());
+
+			//Find the closest edge to the selected point
+			//We need the barycentric coordinates of the intersection ray/triangle ( we could get this smarter then recalculating)
+			FaceIter f_sel = list[0].second.second;
+			glm::mat4 modelMatrixIntersect = glm::mat4(1.0f);
+			modelMatrixIntersect = glm::translate(modelMatrixIntersect, glm::vec3(-10.0f, 0.0f, 0.0f));
+			modelMatrixIntersect = glm::scale(modelMatrixIntersect, glm::vec3(3.0f));
+			HalfedgeIter h = f_sel->halfedge();
+			glm::vec3 v0 = glm::vec3(modelMatrixIntersect * glm::vec4(h->vertex()->position, 1.0f));
+			h = h->next();
+			glm::vec3 v1 = glm::vec3(modelMatrixIntersect * glm::vec4(h->vertex()->position, 1.0f));
+			h = h->next();
+			glm::vec3 v2 = glm::vec3(modelMatrixIntersect * glm::vec4(h->vertex()->position, 1.0f));
+
+			float u = -1.0f, v = -1.0f;
+			float t = rayIntersectsTriangle(cam.position, ray_wor, v0, v1, v2, u, v);
+			float w = 1.0f - u - v;
+
+			halfEdgeMeshColors.erase(halfEdgeMeshColors.begin(), halfEdgeMeshColors.end());
+			halfEdgeMeshVertices.erase(halfEdgeMeshVertices.begin(), halfEdgeMeshVertices.end());
+
+			for (FaceIter f = heMesh.facesBegin(); f != heMesh.facesEnd(); f++) {
+				//1. Half Edge of current face
+				HalfedgeIter h = f->halfedge();
+				halfEdgeMeshVertices.push_back(glm::vec3(h->vertex()->position.x, h->vertex()->position.y, h->vertex()->position.z));
+				
+				//2. Half Edge of current face
+				h = h->next();
+				halfEdgeMeshVertices.push_back(glm::vec3(h->vertex()->position.x, h->vertex()->position.y, h->vertex()->position.z));
+
+				//3. Half Edge of current face
+				h = h->next();
+				halfEdgeMeshVertices.push_back(glm::vec3(h->vertex()->position.x, h->vertex()->position.y, h->vertex()->position.z));
+
+				if (f_sel == f) {
+					halfEdgeMeshColors.push_back(glm::vec3(1.0f, 0.0f, 0.0f));
+					halfEdgeMeshColors.push_back(glm::vec3(1.0f, 0.0f, 0.0f));
+					halfEdgeMeshColors.push_back(glm::vec3(1.0f, 0.0f, 0.0f));
+				}
+				else {
+					halfEdgeMeshColors.push_back(glm::vec3(0.0f, 1.0f, 0.0f));
+					halfEdgeMeshColors.push_back(glm::vec3(0.0f, 1.0f, 0.0f));
+					halfEdgeMeshColors.push_back(glm::vec3(0.0f, 1.0f, 0.0f));
+				}
+			}
+
+			glGenBuffers(2, vboHalfEdgeMesh);
+			glBindBuffer(GL_ARRAY_BUFFER, vboHalfEdgeMesh[0]);
+			glBufferData(GL_ARRAY_BUFFER, halfEdgeMeshVertices.size() * sizeof(float) * 3, halfEdgeMeshVertices.data(), GL_STATIC_DRAW);
 
 			glBindBuffer(GL_ARRAY_BUFFER, vboHalfEdgeMesh[1]);
 			glBufferData(GL_ARRAY_BUFFER, halfEdgeMeshColors.size() * sizeof(float) * 3, halfEdgeMeshColors.data(), GL_STATIC_DRAW);
 		}
+
 	}
 }
 
@@ -340,40 +407,90 @@ void mouseTriangleEdgeSplit() {
 				h = h->next();
 				glm::vec3 v2 = glm::vec3(modelMatrixIntersect * glm::vec4(h->vertex()->position, 1.0f));
 
-				float t = rayIntersectsTriangle(cam.position, ray_wor, v0, v1, v2);
+				float u, v;
+				float t = rayIntersectsTriangle(cam.position, ray_wor, v0, v1, v2, u, v);
+
+
 				if (t != -1.0f) {
+					std::cout << "t: " << t << " u: " << u << " v: " << v << std::endl;
 					list.push_back(pair<float, pair<int, FaceIter>>(t, pair<int, FaceIter>(i, f)));
 				}
 
 				i++;
 			}
 
-			sort(list.begin(), list.end());
+			
 
+			//If we dont even hit a triangle stop here
 			if (!list.empty()) {
 
-				FaceIter pickedFace = list[0].second.second;
+				//Sort all triangles hit by ray
+				sort(list.begin(), list.end());
 
-				std::cout << "test" << std::endl;
-				heMesh.splitEdge(pickedFace->halfedge()->edge());
-				std::cout << "test" << std::endl;
-					for (FaceIter f = heMesh.facesBegin(); f != heMesh.facesEnd(); f++) {
-						//1. Half Edge of current face
-						HalfedgeIter h = f->halfedge();
-						halfEdgeMeshVertices.push_back(glm::vec3(h->vertex()->position.x, h->vertex()->position.y, h->vertex()->position.z));
-						halfEdgeMeshColors.push_back(glm::vec3(0.0f, 1.0f, 0.0f));
+				//Find the closest edge to the selected point
+				//We need the barycentric coordinates of the intersection ray/triangle ( we could get this smarter then recalculating)
+				FaceIter f = list[0].second.second;
+				glm::mat4 modelMatrixIntersect = glm::mat4(1.0f);
+				modelMatrixIntersect = glm::translate(modelMatrixIntersect, glm::vec3(-10.0f, 0.0f, 0.0f));
+				modelMatrixIntersect = glm::scale(modelMatrixIntersect, glm::vec3(3.0f));
 
-						//2. Half Edge of current face
-						h = h->next();
-						halfEdgeMeshVertices.push_back(glm::vec3(h->vertex()->position.x, h->vertex()->position.y, h->vertex()->position.z));
-						halfEdgeMeshColors.push_back(glm::vec3(0.0f, 1.0f, 0.0f));
+				HalfedgeIter h = f->halfedge();
+				glm::vec3 v0 = glm::vec3(modelMatrixIntersect * glm::vec4(h->vertex()->position, 1.0f));
 
-						//3. Half Edge of current face
-						h = h->next();
-						halfEdgeMeshVertices.push_back(glm::vec3(h->vertex()->position.x, h->vertex()->position.y, h->vertex()->position.z));
-						halfEdgeMeshColors.push_back(glm::vec3(0.0f, 1.0f, 0.0f));
-					}
-				std::cout << "test" << std::endl;
+				h = h->next();
+				glm::vec3 v1 = glm::vec3(modelMatrixIntersect * glm::vec4(h->vertex()->position, 1.0f));
+
+				h = h->next();
+				glm::vec3 v2 = glm::vec3(modelMatrixIntersect * glm::vec4(h->vertex()->position, 1.0f));
+
+
+				float u = -1.0f, v = -1.0f;
+				float t = rayIntersectsTriangle(cam.position, ray_wor, v0, v1, v2, u, v);
+				float w = 1.0f - u - v;
+				std::cout << "Chosen result: t: " << t << " u: " << u << " v: " << v << std::endl;
+				EdgeIter eToSplit;
+
+				//the POBLEM here...
+				//NOT: iterator memorizes no state, it resets itself!
+				//WAS: "1-u-v" is a INTEGER 1 --> 1.0f
+				if (u <= v && u <= w) {
+					std::cout << "u" << std::endl;
+					eToSplit = f->halfedge()->next()->next()->edge(); // v0 -> v1 -> v2
+					//f->halfedge()->next(); //back to v0 is NOT needed! Iterator memorizes no state.
+				}
+				else if (v <= u && v <= w) {
+					std::cout << "v" << std::endl;
+					eToSplit = f->halfedge()->edge(); //v0
+				}
+				else if (w <= u && w <= v) {
+					std::cout << "w" << std::endl;
+					eToSplit = f->halfedge()->next()->edge(); // v0 -> v1 
+					//f->halfedge()->next()->next(); //back to v2-> v0  is NOT needed! Iterator memorizes no state.
+
+				}
+
+				heMesh.splitEdge(eToSplit);
+
+				halfEdgeMeshColors.erase(halfEdgeMeshColors.begin(), halfEdgeMeshColors.end());
+				halfEdgeMeshVertices.erase(halfEdgeMeshVertices.begin(), halfEdgeMeshVertices.end());
+
+				for (FaceIter f = heMesh.facesBegin(); f != heMesh.facesEnd(); f++) {
+					//1. Half Edge of current face
+					HalfedgeIter h = f->halfedge();
+					halfEdgeMeshVertices.push_back(glm::vec3(h->vertex()->position.x, h->vertex()->position.y, h->vertex()->position.z));
+					halfEdgeMeshColors.push_back(glm::vec3(0.0f, 1.0f, 0.0f));
+
+					//2. Half Edge of current face
+					h = h->next();
+					halfEdgeMeshVertices.push_back(glm::vec3(h->vertex()->position.x, h->vertex()->position.y, h->vertex()->position.z));
+					halfEdgeMeshColors.push_back(glm::vec3(0.0f, 1.0f, 0.0f));
+
+					//3. Half Edge of current face
+					h = h->next();
+					halfEdgeMeshVertices.push_back(glm::vec3(h->vertex()->position.x, h->vertex()->position.y, h->vertex()->position.z));
+					halfEdgeMeshColors.push_back(glm::vec3(0.0f, 1.0f, 0.0f));
+				}
+
 				glGenBuffers(2, vboHalfEdgeMesh);
 				glBindBuffer(GL_ARRAY_BUFFER, vboHalfEdgeMesh[0]);
 				glBufferData(GL_ARRAY_BUFFER, halfEdgeMeshVertices.size() * sizeof(float) * 3, halfEdgeMeshVertices.data(), GL_STATIC_DRAW);
