@@ -447,23 +447,19 @@ void mouseTriangleEdgeSplit() {
 				float u = -1.0f, v = -1.0f;
 				float t = rayIntersectsTriangle(cam.position, ray_wor, v0, v1, v2, u, v);
 				float w = 1.0f - u - v;
-				std::cout << "Chosen result: t: " << t << " u: " << u << " v: " << v << std::endl;
 				EdgeIter eToSplit;
 
 				//the POBLEM here...
 				//NOT: iterator memorizes no state, it resets itself!
 				//WAS: "1-u-v" is a INTEGER 1 --> 1.0f
 				if (u <= v && u <= w) {
-					std::cout << "u" << std::endl;
 					eToSplit = f->halfedge()->next()->next()->edge(); // v0 -> v1 -> v2
 					//f->halfedge()->next(); //back to v0 is NOT needed! Iterator memorizes no state.
 				}
 				else if (v <= u && v <= w) {
-					std::cout << "v" << std::endl;
 					eToSplit = f->halfedge()->edge(); //v0
 				}
 				else if (w <= u && w <= v) {
-					std::cout << "w" << std::endl;
 					eToSplit = f->halfedge()->next()->edge(); // v0 -> v1 
 					//f->halfedge()->next()->next(); //back to v2-> v0  is NOT needed! Iterator memorizes no state.
 
