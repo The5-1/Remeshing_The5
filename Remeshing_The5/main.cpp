@@ -59,14 +59,26 @@ HalfedgeMesh heMesh;
 // tweak bar
 TwBar *tweakBar;
 bool wireFrameTeapot = true;
+typedef enum { SPLIT, FLIP, COLLAPSE } REMESH_OPERATION;
+REMESH_OPERATION m_operation = SPLIT;
+
+glm::vec3 lightDir;
+
 /* *********************************************************************************************************
 TweakBar
 ********************************************************************************************************* */
 void setupTweakBar() {
 	TwInit(TW_OPENGL_CORE, NULL);
 	tweakBar = TwNewBar("Settings");
+	TwAddVarRW(tweakBar, "lightDirection", TW_TYPE_DIR3F, &lightDir, "label='Light Direction'");
 	TwAddSeparator(tweakBar, "Wireframe", nullptr);
 	TwAddVarRW(tweakBar, "Wireframe Teapot", TW_TYPE_BOOLCPP, &wireFrameTeapot, " label='Wireframe Teapot' ");
+	// Array of drop down items
+	TwEnumVal Operations[] = { { SPLIT, "SPLIT" },{ FLIP, "FLIP" },{ COLLAPSE, "COLLAPSE" }};
+	// ATB identifier for the array
+	TwType TwOperations = TwDefineEnum("Operations", Operations, 3);
+	// Link it to the tweak bar
+	TwAddVarRW(tweakBar, "Operations", TwOperations, &m_operation, NULL);
 }
 
 /* *********************************************************************************************************
@@ -76,6 +88,7 @@ Initiation
 GLuint vboHalfEdgeMesh[2];
 vector<glm::vec3> halfEdgeMeshVertices;
 vector<glm::vec3> halfEdgeMeshColors;
+vector<glm::vec3> halfEdgeNormals;
 
 void init() {
 	
@@ -107,40 +120,36 @@ void init() {
 		f_flip++;
 	}
 
-	//heMesh.flipEdge(f_flip->halfedge()->edge());
-
-	heMesh.splitEdge(f_flip->halfedge()->edge());
-
-	//heMesh.collapseEdge(f_flip->halfedge()->edge());
-
-	//f_flip_neighbour = f_flip->halfedge()->twin()->face();
-
-	//MeshResampler resampler;
-	//resampler.upsample(heMesh);
+	MeshResampler resampler;
+	resampler.upsample(heMesh);
 
 	for (FaceIter f = heMesh.facesBegin(); f != heMesh.facesEnd(); f++) {
 		currentCounter++;
+
+		glm::vec3 faceNormal = f->normal();
+		halfEdgeNormals.push_back(faceNormal);
+		halfEdgeNormals.push_back(faceNormal);
+		halfEdgeNormals.push_back(faceNormal);
+
 		//1. Half Edge of current face
 		HalfedgeIter h = f->halfedge();
-		//std::cout << "Got Halfedge " << std::endl;
 		halfEdgeMeshVertices.push_back(glm::vec3(h->vertex()->position.x, h->vertex()->position.y, h->vertex()->position.z));
-		//std::cout << "Got Vertex " << std::endl;
 		halfEdgeMeshColors.push_back(glm::vec3(0.0f, 1.0f, 0.0f));
 
 		//2. Half Edge of current face
 		h = h->next();
-		//std::cout << "Got Halfedge " << std::endl;
 		halfEdgeMeshVertices.push_back(glm::vec3(h->vertex()->position.x, h->vertex()->position.y, h->vertex()->position.z));
-		//std::cout << "Got Vertex " << std::endl;
 		halfEdgeMeshColors.push_back(glm::vec3(0.0f, 1.0f, 0.0f));
 
 		//3. Half Edge of current face
 		h = h->next();		
-		//std::cout << "Got Halfedge " << std::endl;
 		halfEdgeMeshVertices.push_back(glm::vec3(h->vertex()->position.x, h->vertex()->position.y, h->vertex()->position.z));
-		//std::cout << "Got Vertex " << std::endl;
 		halfEdgeMeshColors.push_back(glm::vec3(0.0f, 1.0f, 0.0f));
+
+
 	}
+
+	/*std::cout << "main: finished glBinding" << std::endl;*/
 
 	glGenBuffers(2, vboHalfEdgeMesh);
 	glBindBuffer(GL_ARRAY_BUFFER, vboHalfEdgeMesh[0]);
@@ -149,6 +158,9 @@ void init() {
 	glBindBuffer(GL_ARRAY_BUFFER, vboHalfEdgeMesh[1]);
 	glBufferData(GL_ARRAY_BUFFER, halfEdgeMeshColors.size() * sizeof(float) * 3, halfEdgeMeshColors.data(), GL_STATIC_DRAW);
 
+
+	//glBindBuffer(GL_ARRAY_BUFFER, vboHalfEdgeMesh[0]);
+	//glBufferData(GL_ARRAY_BUFFER, halfEdgeNormals.size() * sizeof(float) * 3, halfEdgeNormals.data(), GL_STATIC_DRAW);
 	/*****************************************************************
 	Skybox (Only for aesthetic reasons, can be deleted)
 	*****************************************************************/
@@ -193,8 +205,11 @@ void sponzaStandardScene(){
 	modelMatrix = glm::scale(modelMatrix, glm::vec3(3.0f));
 	basicShader.uniform("modelMatrix", modelMatrix);
 	basicShader.uniform("col", glm::vec3(1.0f, 1.0f, 0.0f));
+	basicShader.uniform("lightDir", lightDir);
+
 	glEnableVertexAttribArray(0);
 	glEnableVertexAttribArray(1);
+	//glEnableVertexAttribArray(2);
 
 	glBindBuffer(GL_ARRAY_BUFFER, vboHalfEdgeMesh[0]);
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
@@ -202,10 +217,14 @@ void sponzaStandardScene(){
 	glBindBuffer(GL_ARRAY_BUFFER, vboHalfEdgeMesh[1]);
 	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
 
+	//glBindBuffer(GL_ARRAY_BUFFER, vboHalfEdgeMesh[2]);
+	//glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, 0);
+
 	glDrawArrays(GL_TRIANGLES, 0, halfEdgeMeshVertices.size());
 
 	glDisableVertexAttribArray(0);
 	glDisableVertexAttribArray(1);
+	//glDisableVertexAttribArray(2);
 	basicShader.disable();
 	if (wireFrameTeapot) {
 		glPolygonMode(GL_FRONT, GL_FILL);
@@ -373,7 +392,7 @@ void mouseTriangleSelecction() {
 /*********************************************
 Mouse selection on heModel types (iterator linked list)
 *********************************************/
-void mouseTriangleEdgeSplit() {
+void mouseTriangleOperation() {
 
 	if (leftMouseClick) {
 
@@ -465,7 +484,18 @@ void mouseTriangleEdgeSplit() {
 
 				}
 
-				heMesh.splitEdge(eToSplit);
+
+				switch (m_operation) {
+				case SPLIT:
+					heMesh.splitEdge(eToSplit);
+					break;
+				case FLIP:
+					heMesh.flipEdge(eToSplit);
+					break;
+				case COLLAPSE:
+					heMesh.collapseEdge(eToSplit);
+					break;
+				}
 
 				halfEdgeMeshColors.erase(halfEdgeMeshColors.begin(), halfEdgeMeshColors.end());
 				halfEdgeMeshVertices.erase(halfEdgeMeshVertices.begin(), halfEdgeMeshVertices.end());
@@ -517,7 +547,7 @@ void display() {
 
 
 	//mouseTriangleSelecction();
-	mouseTriangleEdgeSplit();
+	//mouseTriangleOperation();
 
 	//OpenGL Clears
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);

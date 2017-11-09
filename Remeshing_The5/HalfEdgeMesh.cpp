@@ -1,6 +1,7 @@
 #pragma once
 #include "halfEdgeMesh.h"
 
+#define PI 3.14159265359
 
 /**************************************************
 *	Source: http://462cmu.github.io/asst2_meshedit/
@@ -413,9 +414,57 @@
 		FaceIter f1 = h0->face();
 		FaceIter f2 = h3->face();
 
-		if (f1->isBoundary() || f2->isBoundary()) {
+		/*if (f1->isBoundary() || f2->isBoundary()) {
+			return e0;
+		}*/
+
+		/**************************
+		We dont want to have Triangles which have angle over 90°
+		    o
+		   /|\
+		  / | \
+		 /  |  \
+		/   |   \
+	   o---------o
+
+	   If we flip the edge one of the resulting Triangles will be deformed
+		***************************/
+
+		glm::vec3 pos0 = h1->vertex()->position;
+		glm::vec3 pos1 = h2->vertex()->position;
+		glm::vec3 pos2 = h5->vertex()->position;
+
+		float a0 = glm::length(pos0 - pos1);
+		float b0 = glm::length(pos0 - pos2);
+		float c0 = glm::length(pos1 - pos2);
+
+		float alpha0 = glm::acos( (c0*c0 + b0*b0 - a0*a0) / ( 2 * c0 * b0));
+		float beta0 = glm::acos((a0*a0 + c0*c0 - b0*b0) / (2 * a0 * c0));
+		float gamma0 = glm::acos((a0*a0 + b0*b0 - c0*c0) / (2 * a0 * b0));
+
+		glm::vec3 pos3 = h2->vertex()->position;
+		glm::vec3 pos4 = h4->vertex()->position;
+		glm::vec3 pos5 = h5->vertex()->position;
+
+		float a1 = glm::length(pos3 - pos4);
+		float b1 = glm::length(pos3 - pos5);
+		float c1 = glm::length(pos4 - pos5);
+
+		float alpha1 = glm::acos((c1*c1 + b1*b1 - a1*a1) / (2 * c1 * b1));
+		float beta1 = glm::acos((a1*a1 + c1*c1 - b1*b1) / (2 * a1 * c1));
+		float gamma1 = glm::acos((a1*a1 + b1*b1 - c1*c1) / (2 * a1 * b1));
+
+		float maxAngle = PI * 0.9f;
+		if (alpha0 > maxAngle || beta0 > maxAngle || gamma0 > maxAngle || alpha1 > maxAngle || beta1 > maxAngle || gamma1 > maxAngle) {
+			std::cout << alpha0 << " " << beta0 << " " << gamma0 << " = " << alpha0 + beta0 + gamma0 << std::endl;
+			std::cout << alpha1 << " " << beta1 << " " << gamma1 << " = " << alpha1 + beta1 + gamma1 << std::endl;
 			return e0;
 		}
+
+		
+
+		/**************************
+		**************************/
 
 		VertexIter v1 = h2->vertex();
 		VertexIter v2 = h5->vertex();
@@ -444,9 +493,11 @@
 
 	VertexIter HalfedgeMesh::splitEdge(EdgeIter e)
 	{
+
 		if (e->isBoundary()) {
 			return e->halfedge()->vertex();
 		}
+
 		glm::vec3 startVertex = e->halfedge()->vertex()->position;
 		glm::vec3 endVertex = e->halfedge()->twin()->vertex()->position;
 
@@ -456,20 +507,24 @@
 		VertexIter v2_old = e->halfedge()->vertex();
 		VertexIter v3_old = e->halfedge()->twin()->next()->next()->vertex();
 
-		//Create necessary datas
-		//Vertex
-		VertexIter v0 = this->newVertex();
-		v0->position = 0.5f * (startVertex + endVertex);
-
 		//Face
 		FaceIter f0 = e->halfedge()->face();
 		FaceIter f1 = e->halfedge()->twin()->face();
 		FaceIter f2 = this->newFace();
 		FaceIter f3 = this->newFace();
 
+		/************************************************
+		//BUG: This will cause a "list iterator not dereferncable" error
+		//BUT WHY?!?!
 		if (f0->isBoundary() || f1->isBoundary()) {
 			return  e->halfedge()->vertex();
 		}
+		************************************************/
+
+		//Create necessary datas
+		//Vertex
+		VertexIter v0 = this->newVertex();
+		v0->position = 0.5f * (startVertex + endVertex);
 
 		//Edge
 		EdgeIter e0 = e;
@@ -529,6 +584,11 @@
 		e1->halfedge() = h4;
 		e2->halfedge() = h6;
 		e3->halfedge() = h8;
+
+		/*e0->isNew = true;
+		e1->isNew = true;
+		e2->isNew = true;
+		e3->isNew = true;*/
 
 		return v0;
 	}

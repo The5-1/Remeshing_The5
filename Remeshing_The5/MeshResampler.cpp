@@ -17,7 +17,7 @@ void MeshResampler::upsample(HalfedgeMesh& mesh)
 	for (VertexIter v = mesh.verticesBegin(); v != mesh.verticesEnd(); v++) {
 		v->isNew = false;
 
-		if (!v->isBoundary()) {
+		//if (!v->isBoundary()) {
 			float n = float(v->degree());
 			float u;
 
@@ -39,7 +39,6 @@ void MeshResampler::upsample(HalfedgeMesh& mesh)
 				v->newPosition += u * hTwin->vertex()->position;
 				h = hTwin->next();
 			} while (h != v->halfedge());
-		}
 	}
 
 	// TODO Next, compute the updated vertex positions associated with edges, and store it in Edge::newPosition.
@@ -62,57 +61,52 @@ void MeshResampler::upsample(HalfedgeMesh& mesh)
 	// TODO by setting the flat Edge::isNew.  Note that in this loop, we only want to iterate
 	// TODO over edges of the original mesh---otherwise, we'll end up splitting edges that we
 	// TODO just split (and the loop will never end!)
+
 	EdgeIter eSplit = mesh.edgesBegin();
 
+	//while (eSplit != eEnd)
 	while (eSplit != mesh.edgesEnd())
 	{
-		std::cout << "Start" << std::endl;
 		EdgeIter nextEdge = eSplit;
-		std::cout << "before++" << std::endl;
 		nextEdge++;
-		std::cout << "nextEdge++" << std::endl;
 
+		//We only want to split the edges of the old Mesh (these are isNew = false)
 		if (!eSplit->isNew) {
-			std::cout << "!eSplit->isNew" << std::endl;
+
+			glm::vec3 newVertexPos = eSplit->newPosition;
+
 			VertexIter vSplit = mesh.splitEdge(eSplit);
-			std::cout << "splitEdge" << std::endl;
+			vSplit->newPosition = newVertexPos;
+			vSplit->isNew = true;
 
 			//All edgesconnected to the newly created Vertex are new Edges 
 			HalfedgeIter hSplit = vSplit->halfedge();
-			std::cout << "vSplit->halfedge()" << std::endl;
 			do {
-				
 				hSplit->edge()->isNew = true;
 
 				hSplit = hSplit->twin();
-				std::cout << "twin" << std::endl;
 				hSplit = hSplit->next();
-				std::cout << "next" << std::endl;
 			} while (hSplit != vSplit->halfedge());
 		}
 
 		eSplit = nextEdge;
-		std::cout << "End" << std::endl;
 	}
 
 	// TODO Now flip any new edge that connects an old and new vertex.
 	//for (EdgeIter e = mesh.edgesBegin(); e != mesh.edgesEnd(); e++) {
 	//	VertexIter v0 = e->halfedge()->vertex();
 	//	VertexIter v1 = e->halfedge()->twin()->vertex();
-	//	if ((v0->isNew && !v1->isNew) || (!v0->isNew && v1->isNew)) {
+	//	if ((v0->isNew && !v1->isNew && e->isNew) || (!v0->isNew && v1->isNew && e->isNew)) {
 	//		mesh.flipEdge(e);
 	//	}
-
-
 	//}
 
-	// TODO Finally, copy the new vertex positions into final Vertex::position.
-	/*for (VertexIter v = mesh.verticesBegin(); v != mesh.verticesEnd(); v++) {
-		if (!v->isNew) {
-			v->position = v->newPosition;
-		}
-	}*/
-
+	//// TODO Finally, copy the new vertex positions into final Vertex::position.
+	//for (VertexIter v = mesh.verticesBegin(); v != mesh.verticesEnd(); v++) {
+	//	//if (!v->isBoundary()) {
+	//		v->position = v->newPosition;
+	//	//}
+	//}
 }
 
 void MeshResampler::downsample(HalfedgeMesh& mesh)
