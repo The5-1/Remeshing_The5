@@ -396,6 +396,10 @@
 
 	EdgeIter HalfedgeMesh::flipEdge(EdgeIter e0)
 	{
+
+		/*
+		Source: https://books.google.de/books?id=0lb4_pLIyP8C&pg=PA203&lpg=PA203&dq=flip+edge+manifold&source=bl&ots=TFyUGafG8A&sig=6a0-o-UcwzIGyV5UPCSsh3YGg6M&hl=en&sa=X&ved=0ahUKEwiAjZeviLTXAhXPKVAKHXSJD9sQ6AEIVTAK#v=onepage&q=flip%20edge%20manifold&f=false	
+		*/
 		// TODO This method should flip the given edge and return an iterator to the flipped edge.
 		if (e0->isBoundary()) {
 			return e0;
@@ -414,10 +418,15 @@
 		FaceIter f1 = h0->face();
 		FaceIter f2 = h3->face();
 
-		/*if (f1->isBoundary() || f2->isBoundary()) {
+		if (f1->isBoundary() || f2->isBoundary()) {
 			return e0;
-		}*/
-
+		}
+		/**************************
+		Vertex valence > 3
+		***************************/
+		if (h0->vertex()->degree() <= 3|| h3->vertex()->degree() <= 3) {
+			return e0;
+		}
 		/**************************
 		We dont want to have Triangles which have angle over 90°
 		    o
@@ -454,10 +463,10 @@
 		float beta1 = glm::acos((a1*a1 + c1*c1 - b1*b1) / (2 * a1 * c1));
 		float gamma1 = glm::acos((a1*a1 + b1*b1 - c1*c1) / (2 * a1 * b1));
 
-		float maxAngle = PI * 0.9f;
+		float maxAngle = PI * 0.66f;
 		if (alpha0 > maxAngle || beta0 > maxAngle || gamma0 > maxAngle || alpha1 > maxAngle || beta1 > maxAngle || gamma1 > maxAngle) {
-			std::cout << alpha0 << " " << beta0 << " " << gamma0 << " = " << alpha0 + beta0 + gamma0 << std::endl;
-			std::cout << alpha1 << " " << beta1 << " " << gamma1 << " = " << alpha1 + beta1 + gamma1 << std::endl;
+			//std::cout << alpha0 << " " << beta0 << " " << gamma0 << " = " << alpha0 + beta0 + gamma0 << std::endl;
+			//std::cout << alpha1 << " " << beta1 << " " << gamma1 << " = " << alpha1 + beta1 + gamma1 << std::endl;
 			return e0;
 		}
 
@@ -465,28 +474,54 @@
 
 		/**************************
 		**************************/
-
+		VertexIter v0 = h1->vertex();
 		VertexIter v1 = h2->vertex();
-		VertexIter v2 = h5->vertex();
+		VertexIter v2 = h0->vertex();
+		VertexIter v3 = h5->vertex();
 
-		//New Triangle 1
+		////New Triangle 1
 		h0->setNeighbors(h5, h3, v1, e0, f1);
-		h1->setNeighbors(h0, h1->twin(), h1->vertex(), h1->edge(), f1);
 		h5->setNeighbors(h1, h5->twin(), h5->vertex(), h5->edge(), f1);
+		h1->setNeighbors(h0, h1->twin(), h1->vertex(), h1->edge(), f1);
+		
 
-		//New Triangle 2
-		h3->setNeighbors(h2, h0, v2, e0, f2);
+		////New Triangle 2
+		h3->setNeighbors(h2, h0, v3, e0, f2);
 		h2->setNeighbors(h4, h2->twin(), h2->vertex(), h2->edge(), f2);
 		h4->setNeighbors(h3, h4->twin(), h4->vertex(), h4->edge(), f2);
 
-		//Make sure all other points are correct
+		////Make sure all other points are correct
 		f1->halfedge() = h0;
 		f2->halfedge() = h3;
 
-		v1->halfedge() = h0;
-		v2->halfedge() = h3;
-
+		v0->halfedge() = h1;
+		v1->halfedge() = h2;
+		v2->halfedge() = h4;
+		v3->halfedge() = h5;
+		
 		e0->halfedge() = h0;
+
+		//VertexIter v1 = h2->vertex();
+		//VertexIter v2 = h5->vertex();
+
+		////New Triangle 1
+		//h0->setNeighbors(h5, h3, v1, e0, f1);
+		//h1->setNeighbors(h0, h1->twin(), h1->vertex(), h1->edge(), f1);
+		//h5->setNeighbors(h1, h5->twin(), h5->vertex(), h5->edge(), f1);
+
+		////New Triangle 2
+		//h3->setNeighbors(h2, h0, v2, e0, f2);
+		//h2->setNeighbors(h4, h2->twin(), h2->vertex(), h2->edge(), f2);
+		//h4->setNeighbors(h3, h4->twin(), h4->vertex(), h4->edge(), f2);
+
+		////Make sure all other points are correct
+		//f1->halfedge() = h0;
+		//f2->halfedge() = h3;
+
+		//v1->halfedge() = h0;
+		//v2->halfedge() = h3;
+
+		//e0->halfedge() = h0;
 
 		return e0;
 	}
@@ -510,16 +545,18 @@
 		//Face
 		FaceIter f0 = e->halfedge()->face();
 		FaceIter f1 = e->halfedge()->twin()->face();
-		FaceIter f2 = this->newFace();
-		FaceIter f3 = this->newFace();
-
-		/************************************************
-		//BUG: This will cause a "list iterator not dereferncable" error
-		//BUT WHY?!?!
+		/***********************************************
+		Do the check before creating new triangles!!
+		************************************************/
 		if (f0->isBoundary() || f1->isBoundary()) {
 			return  e->halfedge()->vertex();
 		}
+		/***********************************************
 		************************************************/
+		FaceIter f2 = this->newFace();
+		FaceIter f3 = this->newFace();
+
+		
 
 		//Create necessary datas
 		//Vertex

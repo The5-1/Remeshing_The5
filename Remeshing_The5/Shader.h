@@ -105,6 +105,7 @@ public:
 			glAttachShader(ID, geometry);
 		glLinkProgram(ID);
 		checkCompileErrors(ID, "PROGRAM");
+
 		// delete the shaders as they're linked into our program now and no longer necessery
 		glDeleteShader(vertex);
 		glDeleteShader(fragment);

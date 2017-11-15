@@ -85,7 +85,7 @@ void setupTweakBar() {
 Initiation
 ********************************************************************************************************* */
 
-GLuint vboHalfEdgeMesh[2];
+GLuint vboHalfEdgeMesh[3];
 vector<glm::vec3> halfEdgeMeshVertices;
 vector<glm::vec3> halfEdgeMeshColors;
 vector<glm::vec3> halfEdgeNormals;
@@ -120,8 +120,12 @@ void init() {
 		f_flip++;
 	}
 
-	MeshResampler resampler;
-	resampler.upsample(heMesh);
+
+	/*********************************************
+	Resample
+	*********************************************/
+	//MeshResampler resampler;
+	//resampler.upsample(heMesh);
 
 	for (FaceIter f = heMesh.facesBegin(); f != heMesh.facesEnd(); f++) {
 		currentCounter++;
@@ -134,33 +138,43 @@ void init() {
 		//1. Half Edge of current face
 		HalfedgeIter h = f->halfedge();
 		halfEdgeMeshVertices.push_back(glm::vec3(h->vertex()->position.x, h->vertex()->position.y, h->vertex()->position.z));
-		halfEdgeMeshColors.push_back(glm::vec3(0.0f, 1.0f, 0.0f));
+		//halfEdgeMeshColors.push_back(glm::vec3(0.0f, 1.0f, 0.0f));
 
 		//2. Half Edge of current face
 		h = h->next();
 		halfEdgeMeshVertices.push_back(glm::vec3(h->vertex()->position.x, h->vertex()->position.y, h->vertex()->position.z));
-		halfEdgeMeshColors.push_back(glm::vec3(0.0f, 1.0f, 0.0f));
+		//halfEdgeMeshColors.push_back(glm::vec3(0.0f, 1.0f, 0.0f));
 
 		//3. Half Edge of current face
 		h = h->next();		
 		halfEdgeMeshVertices.push_back(glm::vec3(h->vertex()->position.x, h->vertex()->position.y, h->vertex()->position.z));
-		halfEdgeMeshColors.push_back(glm::vec3(0.0f, 1.0f, 0.0f));
+		//halfEdgeMeshColors.push_back(glm::vec3(0.0f, 1.0f, 0.0f));
 
+		if (f->halfedge()->edge()->isBoundary() || f->halfedge()->next()->edge()->isBoundary() || f->halfedge()->next()->next()->edge()->isBoundary()) {
+			std::cout << "main.cpp: Found boundary" << std::endl;
+			halfEdgeMeshColors.push_back(glm::vec3(1.0f, 0.0f, 0.0f));
+			halfEdgeMeshColors.push_back(glm::vec3(1.0f, 0.0f, 0.0f));
+			halfEdgeMeshColors.push_back(glm::vec3(1.0f, 0.0f, 0.0f));
+		}
+		else {
+			halfEdgeMeshColors.push_back(glm::vec3(0.0f, 1.0f, 0.0f));
+			halfEdgeMeshColors.push_back(glm::vec3(0.0f, 1.0f, 0.0f));
+			halfEdgeMeshColors.push_back(glm::vec3(0.0f, 1.0f, 0.0f));
+		}
 
 	}
 
 	/*std::cout << "main: finished glBinding" << std::endl;*/
 
-	glGenBuffers(2, vboHalfEdgeMesh);
+	glGenBuffers(3, vboHalfEdgeMesh);
 	glBindBuffer(GL_ARRAY_BUFFER, vboHalfEdgeMesh[0]);
 	glBufferData(GL_ARRAY_BUFFER, halfEdgeMeshVertices.size() * sizeof(float) * 3, halfEdgeMeshVertices.data(), GL_STATIC_DRAW);
 
 	glBindBuffer(GL_ARRAY_BUFFER, vboHalfEdgeMesh[1]);
 	glBufferData(GL_ARRAY_BUFFER, halfEdgeMeshColors.size() * sizeof(float) * 3, halfEdgeMeshColors.data(), GL_STATIC_DRAW);
 
-
-	//glBindBuffer(GL_ARRAY_BUFFER, vboHalfEdgeMesh[0]);
-	//glBufferData(GL_ARRAY_BUFFER, halfEdgeNormals.size() * sizeof(float) * 3, halfEdgeNormals.data(), GL_STATIC_DRAW);
+	glBindBuffer(GL_ARRAY_BUFFER, vboHalfEdgeMesh[2]);
+	glBufferData(GL_ARRAY_BUFFER, halfEdgeNormals.size() * sizeof(float) * 3, halfEdgeNormals.data(), GL_STATIC_DRAW);
 	/*****************************************************************
 	Skybox (Only for aesthetic reasons, can be deleted)
 	*****************************************************************/
@@ -209,7 +223,7 @@ void sponzaStandardScene(){
 
 	glEnableVertexAttribArray(0);
 	glEnableVertexAttribArray(1);
-	//glEnableVertexAttribArray(2);
+	glEnableVertexAttribArray(2);
 
 	glBindBuffer(GL_ARRAY_BUFFER, vboHalfEdgeMesh[0]);
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
@@ -217,14 +231,15 @@ void sponzaStandardScene(){
 	glBindBuffer(GL_ARRAY_BUFFER, vboHalfEdgeMesh[1]);
 	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
 
-	//glBindBuffer(GL_ARRAY_BUFFER, vboHalfEdgeMesh[2]);
-	//glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, 0);
+	glBindBuffer(GL_ARRAY_BUFFER, vboHalfEdgeMesh[2]);
+	glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, 0);
 
 	glDrawArrays(GL_TRIANGLES, 0, halfEdgeMeshVertices.size());
 
 	glDisableVertexAttribArray(0);
 	glDisableVertexAttribArray(1);
-	//glDisableVertexAttribArray(2);
+	glDisableVertexAttribArray(2);
+
 	basicShader.disable();
 	if (wireFrameTeapot) {
 		glPolygonMode(GL_FRONT, GL_FILL);

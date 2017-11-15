@@ -224,8 +224,8 @@ bool _gl_check_error(const char* arg, const char *file, int line, const char *fu
 {
 	GLenum err = glGetError();
 
-	while (err != GL_NO_ERROR) {
-		
+	//while (err != GL_NO_ERROR) { //since we exit in the first while-loop, why even while?
+	if (err != GL_NO_ERROR) {	
 		string error;
 
 		switch (err) {
@@ -239,7 +239,7 @@ bool _gl_check_error(const char* arg, const char *file, int line, const char *fu
 		std::cerr << "\t GLEW error: " << glewGetErrorString(err) << "(" << err << ")" << std::endl;
 		std::cerr << "\t GL error: " << error.c_str() << endl;
 		std::cerr << "\t file: " << file << " line: " << line << " function: " << function << endl;
-		std::exit(1);
+		std::exit(1); //this EXITS the program ---> why would we want that
 	}
 	return err == 0;
 };
