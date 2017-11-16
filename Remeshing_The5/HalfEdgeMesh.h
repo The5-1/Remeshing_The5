@@ -523,6 +523,8 @@ typedef size_t Size;
 		glm::vec3 newPosition; ///< For Loop subdivision, this will be the position for the edge midpoint
 		bool isNew; ///< For Loop subdivision, this flag should be true if and only if this edge is a new edge created by subdivision (i.e., if it cuts across a triangle in the original mesh)
 
+		bool subdivionsFlip = false;
+
 		EdgeRecord record;
 
 	protected:

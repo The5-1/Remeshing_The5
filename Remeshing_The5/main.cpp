@@ -62,7 +62,7 @@ bool wireFrameTeapot = true;
 typedef enum { SPLIT, FLIP, COLLAPSE } REMESH_OPERATION;
 REMESH_OPERATION m_operation = SPLIT;
 
-glm::vec3 lightDir;
+glm::vec3 lightDir = glm::vec3(1.0f, 0.0f, 0.0f);
 
 /* *********************************************************************************************************
 TweakBar
@@ -124,8 +124,12 @@ void init() {
 	/*********************************************
 	Resample
 	*********************************************/
-	//MeshResampler resampler;
-	//resampler.upsample(heMesh);
+	MeshResampler resampler;
+	resampler.upsample(heMesh);
+
+	halfEdgeMeshVertices.clear();
+	halfEdgeMeshColors.clear();
+	halfEdgeNormals.clear();
 
 	for (FaceIter f = heMesh.facesBegin(); f != heMesh.facesEnd(); f++) {
 		currentCounter++;
@@ -150,7 +154,39 @@ void init() {
 		halfEdgeMeshVertices.push_back(glm::vec3(h->vertex()->position.x, h->vertex()->position.y, h->vertex()->position.z));
 		//halfEdgeMeshColors.push_back(glm::vec3(0.0f, 1.0f, 0.0f));
 
-		if (f->halfedge()->edge()->isBoundary() || f->halfedge()->next()->edge()->isBoundary() || f->halfedge()->next()->next()->edge()->isBoundary()) {
+		if (f->halfedge()->vertex()->isBoundary()) {
+			halfEdgeMeshColors.push_back(glm::vec3(1.0f, 0.0f, 0.0f));
+		}
+		else {
+			halfEdgeMeshColors.push_back(glm::vec3(0.0f, 0.0f, 1.0f));
+		}
+
+		if (f->halfedge()->next()->vertex()->isBoundary()) {
+			halfEdgeMeshColors.push_back(glm::vec3(1.0f, 0.0f, 0.0f));
+		}
+		else {
+			halfEdgeMeshColors.push_back(glm::vec3(0.0f, 0.0f, 1.0f));
+		}
+
+		if (f->halfedge()->next()->next()->vertex()->isBoundary()) {
+			halfEdgeMeshColors.push_back(glm::vec3(1.0f, 0.0f, 0.0f));
+		}
+		else {
+			halfEdgeMeshColors.push_back(glm::vec3(0.0f, 0.0f, 1.0f));
+		}
+		/*if (f->halfedge()->vertex()->isBoundary() || f->halfedge()->next()->vertex()->isBoundary() || f->halfedge()->next()->next()->vertex()->isBoundary()) {
+		halfEdgeMeshColors.push_back(glm::vec3(1.0f, 0.0f, 0.0f));
+		halfEdgeMeshColors.push_back(glm::vec3(1.0f, 0.0f, 0.0f));
+		halfEdgeMeshColors.push_back(glm::vec3(1.0f, 0.0f, 0.0f));
+		}
+		else {
+		halfEdgeMeshColors.push_back(glm::vec3(0.0f, 0.0f, 1.0f));
+		halfEdgeMeshColors.push_back(glm::vec3(0.0f, 0.0f, 1.0f));
+		halfEdgeMeshColors.push_back(glm::vec3(0.0f, 0.0f, 1.0f));
+		}*/
+
+
+		/*if (f->halfedge()->edge()->isBoundary() || f->halfedge()->next()->edge()->isBoundary() || f->halfedge()->next()->next()->edge()->isBoundary()) {
 			std::cout << "main.cpp: Found boundary" << std::endl;
 			halfEdgeMeshColors.push_back(glm::vec3(1.0f, 0.0f, 0.0f));
 			halfEdgeMeshColors.push_back(glm::vec3(1.0f, 0.0f, 0.0f));
@@ -160,11 +196,16 @@ void init() {
 			halfEdgeMeshColors.push_back(glm::vec3(0.0f, 1.0f, 0.0f));
 			halfEdgeMeshColors.push_back(glm::vec3(0.0f, 1.0f, 0.0f));
 			halfEdgeMeshColors.push_back(glm::vec3(0.0f, 1.0f, 0.0f));
-		}
+		}*/
 
 	}
 
-	/*std::cout << "main: finished glBinding" << std::endl;*/
+	glm::mat4 modelMatrix = glm::mat4(1.0f);
+	modelMatrix = glm::translate(modelMatrix, glm::vec3(-10.0f, 0.0f, 0.0f));
+	modelMatrix = glm::scale(modelMatrix, glm::vec3(10.0f));
+	for (int i = 0; i < halfEdgeMeshVertices.size(); i++) {
+		halfEdgeMeshVertices[i] = glm::vec3(modelMatrix * glm::vec4(halfEdgeMeshVertices[i], 1.0f));
+	}
 
 	glGenBuffers(3, vboHalfEdgeMesh);
 	glBindBuffer(GL_ARRAY_BUFFER, vboHalfEdgeMesh[0]);
@@ -198,7 +239,7 @@ void sponzaStandardScene(){
 	skybox.Draw(skyboxShader);
 	skyboxShader.disable();
 
-	glm::mat4 modelMatrix;
+	glm::mat4 modelMatrix = glm::mat4(1.0f);
 
 	/* ********************************************
 	Half-Edge-Mesh
@@ -214,9 +255,11 @@ void sponzaStandardScene(){
 	basicShader.enable();
 	basicShader.uniform("projMatrix", projMatrix);
 	basicShader.uniform("viewMatrix", viewMatrix);
-	modelMatrix = glm::mat4(1.0f);
-	modelMatrix = glm::translate(modelMatrix, glm::vec3(-10.0f, 0.0f, 0.0f));
-	modelMatrix = glm::scale(modelMatrix, glm::vec3(3.0f));
+
+	//modelMatrix = glm::mat4(1.0f);
+	//modelMatrix = glm::translate(modelMatrix, glm::vec3(-10.0f, 0.0f, 0.0f));
+	//modelMatrix = glm::scale(modelMatrix, glm::vec3(3.0f));
+
 	basicShader.uniform("modelMatrix", modelMatrix);
 	basicShader.uniform("col", glm::vec3(1.0f, 1.0f, 0.0f));
 	basicShader.uniform("lightDir", lightDir);
@@ -316,8 +359,9 @@ void mouseTriangleSelecction() {
 		for (FaceIter f = heMesh.facesBegin(); f != heMesh.facesEnd(); f++) {
 
 			glm::mat4 modelMatrixIntersect = glm::mat4(1.0f);
-			modelMatrixIntersect = glm::translate(modelMatrixIntersect, glm::vec3(-10.0f, 0.0f, 0.0f));
-			modelMatrixIntersect = glm::scale(modelMatrixIntersect, glm::vec3(3.0f));
+
+			//modelMatrixIntersect = glm::translate(modelMatrixIntersect, glm::vec3(-10.0f, 0.0f, 0.0f));
+			//modelMatrixIntersect = glm::scale(modelMatrixIntersect, glm::vec3(3.0f));
 
 			HalfedgeIter h = f->halfedge();
 			glm::vec3 v0 = glm::vec3(modelMatrixIntersect * glm::vec4(h->vertex()->position, 1.0f));
@@ -352,8 +396,10 @@ void mouseTriangleSelecction() {
 			//We need the barycentric coordinates of the intersection ray/triangle ( we could get this smarter then recalculating)
 			FaceIter f_sel = list[0].second.second;
 			glm::mat4 modelMatrixIntersect = glm::mat4(1.0f);
-			modelMatrixIntersect = glm::translate(modelMatrixIntersect, glm::vec3(-10.0f, 0.0f, 0.0f));
-			modelMatrixIntersect = glm::scale(modelMatrixIntersect, glm::vec3(3.0f));
+			
+			//modelMatrixIntersect = glm::translate(modelMatrixIntersect, glm::vec3(-10.0f, 0.0f, 0.0f));
+			//modelMatrixIntersect = glm::scale(modelMatrixIntersect, glm::vec3(3.0f));
+			
 			HalfedgeIter h = f_sel->halfedge();
 			glm::vec3 v0 = glm::vec3(modelMatrixIntersect * glm::vec4(h->vertex()->position, 1.0f));
 			h = h->next();
@@ -429,8 +475,9 @@ void mouseTriangleOperation() {
 			for (FaceIter f = heMesh.facesBegin(); f != heMesh.facesEnd(); f++) {
 
 				glm::mat4 modelMatrixIntersect = glm::mat4(1.0f);
-				modelMatrixIntersect = glm::translate(modelMatrixIntersect, glm::vec3(-10.0f, 0.0f, 0.0f));
-				modelMatrixIntersect = glm::scale(modelMatrixIntersect, glm::vec3(3.0f));
+
+				//modelMatrixIntersect = glm::translate(modelMatrixIntersect, glm::vec3(-10.0f, 0.0f, 0.0f));
+				//modelMatrixIntersect = glm::scale(modelMatrixIntersect, glm::vec3(3.0f));
 
 				HalfedgeIter h = f->halfedge();
 				glm::vec3 v0 = glm::vec3(modelMatrixIntersect * glm::vec4(h->vertex()->position, 1.0f));
@@ -465,8 +512,9 @@ void mouseTriangleOperation() {
 				//We need the barycentric coordinates of the intersection ray/triangle ( we could get this smarter then recalculating)
 				FaceIter f = list[0].second.second;
 				glm::mat4 modelMatrixIntersect = glm::mat4(1.0f);
-				modelMatrixIntersect = glm::translate(modelMatrixIntersect, glm::vec3(-10.0f, 0.0f, 0.0f));
-				modelMatrixIntersect = glm::scale(modelMatrixIntersect, glm::vec3(3.0f));
+
+				//modelMatrixIntersect = glm::translate(modelMatrixIntersect, glm::vec3(-10.0f, 0.0f, 0.0f));
+				//modelMatrixIntersect = glm::scale(modelMatrixIntersect, glm::vec3(3.0f));
 
 				HalfedgeIter h = f->halfedge();
 				glm::vec3 v0 = glm::vec3(modelMatrixIntersect * glm::vec4(h->vertex()->position, 1.0f));

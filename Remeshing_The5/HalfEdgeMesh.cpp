@@ -617,10 +617,10 @@
 		f3->halfedge() = h9;
 
 		//Set Edges
-		e0->halfedge() = h0;
-		e1->halfedge() = h4;
-		e2->halfedge() = h6;
-		e3->halfedge() = h8;
+		e0->halfedge() = h0; e0->subdivionsFlip = false;
+		e1->halfedge() = h4; e1->subdivionsFlip = true;
+		e2->halfedge() = h6; e2->subdivionsFlip = false;
+		e3->halfedge() = h8; e3->subdivionsFlip = true;
 
 		/*e0->isNew = true;
 		e1->isNew = true;

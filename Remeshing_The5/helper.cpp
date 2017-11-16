@@ -193,7 +193,7 @@ void initGL() {
 	const glm::vec3 up =     glm::vec3(cam.upDir);
 
 	viewMatrix = glm::lookAt(eye,center,up);
-	projMatrix =  glm::perspective(70.0f, (GLfloat)WIDTH / (GLfloat)HEIGHT, 1.0f, 500.0f);
+	projMatrix =  glm::perspective(70.0f, (GLfloat)WIDTH / (GLfloat)HEIGHT, 0.1f, 500.0f);
 	reshape(WIDTH, HEIGHT);
 }
 

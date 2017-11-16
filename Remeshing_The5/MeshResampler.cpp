@@ -30,6 +30,8 @@ void MeshResampler::upsample(HalfedgeMesh& mesh)
 				u = 3.0f / (8.0f * n);
 			}
 
+			//std::cout << "n: " << n << " u: " << u << std::endl;
+
 			//Reset newPosition
 			v->newPosition = glm::vec3(0.0f);
 			v->newPosition += (1.0f - n * u) * v->position;
@@ -39,6 +41,7 @@ void MeshResampler::upsample(HalfedgeMesh& mesh)
 				v->newPosition += u * hTwin->vertex()->position;
 				h = hTwin->next();
 			} while (h != v->halfedge());
+
 		}
 		else {
 			v->newPosition = v->position;
@@ -87,7 +90,7 @@ void MeshResampler::upsample(HalfedgeMesh& mesh)
 			HalfedgeIter hSplit = vSplit->halfedge();
 			do {
 				hSplit->edge()->isNew = true;
-
+				
 				hSplit = hSplit->twin();
 				hSplit = hSplit->next();
 			} while (hSplit != vSplit->halfedge());
@@ -97,20 +100,21 @@ void MeshResampler::upsample(HalfedgeMesh& mesh)
 	}
 
 	// TODO Now flip any new edge that connects an old and new vertex.
-	/*for (EdgeIter e = mesh.edgesBegin(); e != mesh.edgesEnd(); e++) {
+	for (EdgeIter e = mesh.edgesBegin(); e != mesh.edgesEnd(); e++) {
 		VertexIter v0 = e->halfedge()->vertex();
 		VertexIter v1 = e->halfedge()->twin()->vertex();
-		if ((v0->isNew && !v1->isNew && e->isNew) || (!v0->isNew && v1->isNew && e->isNew)) {
+		if ((v0->isNew && !v1->isNew && e->subdivionsFlip) || (!v0->isNew && v1->isNew && e->subdivionsFlip)) {
+		//if ((v0->isNew && !v1->isNew && e->isNew) || (!v0->isNew && v1->isNew && e->isNew)) {
 			mesh.flipEdge(e);
 		}
-	}*/
+	}
 
 	// TODO Finally, copy the new vertex positions into final Vertex::position.
-	//for (VertexIter v = mesh.verticesBegin(); v != mesh.verticesEnd(); v++) {
-	//	//if (!v->isBoundary()) {
-	//		v->position = v->newPosition;
-	//	//}
-	//}
+	for (VertexIter v = mesh.verticesBegin(); v != mesh.verticesEnd(); v++) {
+		//if (!v->isBoundary()) {
+			v->position = v->newPosition;
+		//}
+	}
 }
 
 void MeshResampler::downsample(HalfedgeMesh& mesh)

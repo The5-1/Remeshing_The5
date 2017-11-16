@@ -16,7 +16,7 @@ out vec4 pos_ec;
 
 void main() {
 	viewCamPos = viewMatrix * modelMatrix * vec4(vec3(0.0f, 0.0f, 0.0f), 1.0f);
-	color = col;
+	color = vColor;
 	
 	mat3 normalMatrix = transpose(inverse(mat3(viewMatrix * modelMatrix)));
 	normal = normalMatrix * vNormal.xyz;
